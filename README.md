@@ -1,9 +1,8 @@
 # py-debugger #
 ## Description ##
+Python-based **Windows TUI Debugger**, mainly used the Windows Debugger API
 
 ## Usage ##
-> **Note:**
-
 >- python [**main.py**] [**filename**]
 
 ## Reference ##
