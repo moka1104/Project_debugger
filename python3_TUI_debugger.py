@@ -1,19 +1,16 @@
-
 from ctypes import *
 from ctypes import wintypes
 from dbg_define_header import *
 from capstone import *
 import pefile
-import copy
-import binascii
 import sys
 import os
-import struct
+import distorm3
 
 kernel32 = windll.kernel32
 
-class debugger:
-    def __init__(self, filename):
+class debugger(object):
+    def __init__(self, filename):      
         self.h_process = None
         self.h_thread = None
         self.thread_id = None
@@ -22,7 +19,7 @@ class debugger:
         self.bp_address = None
         self.start_addr = 0
         self.first_breakpoint = True
-        self.dump_address = None
+        self.memory_base_address = None
         self.command = None
         self.exception = None
         self.exception_address = None
@@ -34,6 +31,7 @@ class debugger:
         self.breakpoints = {}
         self.guarded_pages = []
         self.memory_breakpoints = {}
+        self.filename = filename
         
         global si
         global pi
@@ -107,7 +105,7 @@ class debugger:
                 self.bp_address = input("bp address -> ")
                 self.bp_address = int(self.bp_address, 16)
                 bp_ret = self.bp_set(self.bp_address)
-                if not bp_ret: #breakpoint is none
+                if not bp_ret: # breakpoint is none
                     self.run_dbg = False
                 self.get_debug_event()
                 
@@ -121,10 +119,7 @@ class debugger:
                 bp_address = list(sorted(self.breakpoints.keys()))
                 for i in range(len(bp_address)):
                     print("Breakpoint %d : %s" % (i+1, bp_address[i]))
-                
-            elif self.command == "disas" or self.command == "disassemble":
-                print("disas")
-                
+
             elif self.command == "reg" or self.command == "register":
                 print("[*] Show Current Register Value")
                 self.get_thread_context()
@@ -135,9 +130,9 @@ class debugger:
             else:
                 print("Wrong Command")
                 continue
-        
+    
     def start(self):    
-        kernel32.CreateProcessW(filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi))
+        kernel32.CreateProcessW(self.filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi))
 
         if not self.h_process:
             address = self.get_debug_event()
@@ -148,7 +143,6 @@ class debugger:
             try:
                 original_byte = self.read_process_memory(address, 1)
 
-                #print context.Eip
                 if not kernel32.VirtualQueryEx(self.h_process,
                                            context.Eip,
                                            byref(mbi),
@@ -166,7 +160,7 @@ class debugger:
                     
                 self.write_process_memory(address, b"\xCC")
 
-                bp = self.read_process_memory(address, 1)
+                self.read_process_memory(address, 1)
                 
                 if not kernel32.VirtualProtectEx(self.h_process,
                                                  mbi.BaseAddress, mbi.RegionSize,
@@ -192,7 +186,7 @@ class debugger:
             
         while(self.run_dbg):
             if kernel32.WaitForDebugEvent(byref(debug_event), 1000):
-                print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
+                #print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
         
                 if debug_event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT:
                         di = debug_event.u.CreateProcessInfo
@@ -222,13 +216,14 @@ class debugger:
                     elif self.exception == EXCEPTION_BREAKPOINT:
                         if self.system_bp:
                             self.exception_handler_breakpoint()
-                            self.get_thread_context()                          
+                            self.get_thread_context()
                             self.system_bp = False
                             self.run_dbg = False
                         else:
                             print("[*] Breakpoint at " + hex(self.exception_address))
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
+                            self.get_memory(self.bp_address)
                             #del self.breakpoints[hex(self.exception_address)]
                             self.run_dbg = False
                             
@@ -309,6 +304,41 @@ class debugger:
             print("[-] Error : 0x%08x." % kernel32.GetLastError())
             return False
 
+    def get_memory(self, address):
+        buf = create_string_buffer(64)
+        count = c_ulong(0)
+        
+        kernel32.ReadProcessMemory(self.h_process, address, buf, 64, byref(count))
+        buf = bytes(buf)
+        
+        asm = distorm3.Decode(address, buf, distorm3.Decode32Bits) #byte stream start address, byte stream, flag(16, 32, 64)
+
+        print("============================================================")
+        print("                         disassemble                        ")
+        print("============================================================")
+        
+        asm_list = []
+        
+        for addr, size, ins_asm, opcode in asm:
+            op_res = ""
+            address = "%08x" % addr
+
+            opcode = opcode.decode('utf-8')
+            op_length = len(opcode)
+            for i in range(op_length):
+                if i % 2 == 0:
+                    op_res += "%02s " % opcode[0+i:2+i]
+                
+            byte_code = " : %-3s" % op_res
+            disas = "  %s" % ins_asm.decode('utf-8')
+
+            result = "0x" + address + byte_code + disas
+            #asm_list.append(result)
+            print(result)
+            
+        #print(asm_list)
+        
+        
     def read_process_memory(self, address, length):
         data = ""
         read_buf = create_string_buffer(length)
@@ -357,17 +387,6 @@ class debugger:
             return h_thread
         else:
             print("[*] Could not obtain a valid thread handle.")
-  
-if __name__ == "__main__":
-    filename = sys.argv[1]
-    debug = debugger(filename)
-    print("============================================")
-    print(" TUI Debugger started. Please input command.\n")
-    print(" start / stop / attach")
-    print(" step / continue / bp(breakpoint)")
-    print(" disas / regs / dump")
-    print("============================================")
-    debug.cmdProc()
 
 
     
