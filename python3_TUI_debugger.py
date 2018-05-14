@@ -9,7 +9,7 @@ import distorm3
 
 kernel32 = windll.kernel32
 
-class debugger(object):
+class debugger(object): # the most object
     def __init__(self, filename):      
         self.h_process = None
         self.h_thread = None
@@ -28,8 +28,8 @@ class debugger(object):
         self.run_dbg = True
         self.system_bp = True
         self.isbp = False
-        self.breakpoints = {}
-        self.guarded_pages = []
+        self.breakpoints = {} # dictionary, set
+        self.guarded_pages = [] # list
         self.memory_breakpoints = {}
         self.filename = filename
         
@@ -59,7 +59,7 @@ class debugger(object):
             self.command = input("input >> ")
         
             if self.command == "start":
-                self.start()
+                self.create_process()
                 
             elif self.command == "stop":
                 #if self.attached:
@@ -76,19 +76,16 @@ class debugger(object):
                 kernel32.CloseHandle(self.h_thread)
                 
             elif self.command == "attach":
-                if self.h_process:
-                    kernel32.CloseHandle(self.h_process)
                 os.system('tasklist')
-                self.pid = input("Please Input PID >> ")
-                self.h_thread = self.open_processs(self.pid)
-                    
-                if self.h_thread:
-                    if kernel32.DebugActiveProcess(self.pid):
-                        self.attached = True
-                        print("[*] Attached process")
-                    else:
-                        print("[-] Error : 0x%08x." % kernel32.GetLastError())
-                        break
+                self.pid = int(input("Please Input PID >> "))
+                self.h_process = self.open_process(self.pid)
+                
+                if kernel32.DebugActiveProcess(self.pid):
+                    self.attached = True
+                    print("[*] Attached process")
+                else:
+                    print("[-] Error : 0x%08x." % kernel32.GetLastError())
+                    break
                     
             elif self.command == "step":
                 self.isbp = False
@@ -119,19 +116,26 @@ class debugger(object):
                 bp_address = list(sorted(self.breakpoints.keys()))
                 for i in range(len(bp_address)):
                     print("Breakpoint %d : %s" % (i+1, bp_address[i]))
-
+                print(self.breakpoints.items())
+                
             elif self.command == "reg" or self.command == "register":
                 print("[*] Show Current Register Value")
                 self.get_thread_context()
+
+            elif self.command == "run":
+                self.run()
                 
             elif self.command == "stack":
                 print("stack")
+
+            elif self.command == "disas" or self.command == "disassemble":
+                print("disas")
                 
             else:
                 print("Wrong Command")
                 continue
     
-    def start(self):    
+    def create_process(self):    
         kernel32.CreateProcessW(self.filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi))
 
         if not self.h_process:
@@ -178,19 +182,25 @@ class debugger(object):
                 print("[-] Breakpoint Execption is %s" % ex)
                 return False
         else:
+            self.write_process_memory(address, self.breakpoints[hex(address)].encode())
             del self.breakpoints[hex(address)]
             return True
-            
+
+    def run(self):
+        self.get_debug_event()
+        
     def get_debug_event(self):
         kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE)
             
         while(self.run_dbg):
             if kernel32.WaitForDebugEvent(byref(debug_event), 1000):
-                #print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
+                print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
         
                 if debug_event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT:
                         di = debug_event.u.CreateProcessInfo
-                        print("===== CREATE PROCESS [PID = %d] =====" % debug_event.dwProcessId)
+                        print("=====================================")
+                        print("          PROCESS [PID = %d]         " % debug_event.dwProcessId)
+                        print("=====================================")
                         print("File = %d" % di.hFile)
                         print("Process = %d" % di.hProcess)
                         print("Thread = %d" % di.hThread)
@@ -201,7 +211,7 @@ class debugger(object):
                         self.h_process = pi.hProcess
                         self.thread_id = pi.dwThreadId
                         self.h_thread = self.open_thread(self.thread_id)
-                        self.start_addr = di.lpStartAddress                        
+                        #self.start_addr = di.lpStartAddress                        
                                             
                 if debug_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT:
                     self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
@@ -223,13 +233,20 @@ class debugger(object):
                             print("[*] Breakpoint at " + hex(self.exception_address))
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
-                            self.get_memory(self.bp_address)
+                            #address = int(self.exception_address)
+                            self.write_process_memory(self.exception_address, self.breakpoints[hex(self.exception_address)].encode())
+
+                            bp_eip = int(context.Eip)
+                            bp_eip -= 1
+                            self.get_memory(bp_eip)
+
                             #del self.breakpoints[hex(self.exception_address)]
                             self.run_dbg = False
                             
                     elif self.exception == EXCEPTION_SINGLE_STEP:
                         print("[*] Single Step at " + hex(self.exception_address))
                         ret_eip = self.get_thread_context()
+                        self.get_memory(ret_eip)
                         self.run_dbg = False
                             
                 elif debug_event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT:
@@ -262,8 +279,9 @@ class debugger(object):
                                                  PAGE_EXECUTE_READWRITE, byref(mbi.Protect)):
                     print("[-] Error : 0x%08x." % kernel32.GetLastError())
                     return False
+    
 
-            self.write_process_memory(self.exception_address, bytes(self.breakpoints[hex(self.exception_address)], 'utf8'))
+            
             
     def set_single_step(self):
         context.EFlags |= 0x100 # Trap bit
@@ -313,9 +331,9 @@ class debugger(object):
         
         asm = distorm3.Decode(address, buf, distorm3.Decode32Bits) #byte stream start address, byte stream, flag(16, 32, 64)
 
-        print("============================================================")
-        print("                         disassemble                        ")
-        print("============================================================")
+        print("============================================")
+        print("                 disassemble                ")
+        print("============================================")
         
         asm_list = []
         
@@ -379,11 +397,13 @@ class debugger(object):
         
     def open_process(self, pid):
         h_process = kernel32.OpenProcess(PROCESS_ALL_ACCESS, False, pid)
-        return h_process
-
+        if h_process:
+            return h_process
+        else:
+            print("[*] Could not obtain a valid process handle")
     def open_thread(self, thread_id):
         h_thread = kernel32.OpenThread(THREAD_ALL_ACCESS, None, thread_id)
-        if h_thread is not None:
+        if h_thread:
             return h_thread
         else:
             print("[*] Could not obtain a valid thread handle.")
