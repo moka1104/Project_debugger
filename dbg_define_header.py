@@ -18,6 +18,7 @@ SIZE_T    = c_ulong
 BOOL      = c_bool
 LONG      = c_long
 TCHAR     = c_char
+LPTHREAD_START_ROUTINE = c_void_p
 #LPTHREAD_START_ROUTINE = WINFUNCTYPE(DWORD, LPVOID)
 
 if sizeof(c_void_p) == 8:
@@ -162,7 +163,7 @@ class CREATE_PROCESS_DEBUG_INFO(Structure):
         ("dwDebugInfoFileOffset", DWORD),
         ("nDebugInfoSize", DWORD),
         ("lpThreadLocalBase", LPVOID),
-        ("lpStartAddress", PVOID),
+        ("lpStartAddress", LPTHREAD_START_ROUTINE),
         ("lpImageName", LPVOID),
         ("fUnicode", WORD),
         ]

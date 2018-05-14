@@ -18,7 +18,7 @@ class debugger:
         self.thread_id = None
         self.context = None
         self.pid = None
-        self.bp_address = 0
+        self.bp_address = None
         self.start_addr = 0
         self.first_breakpoint = True
         self.dump_address = None
@@ -78,6 +78,8 @@ class debugger:
                 kernel32.CloseHandle(self.h_thread)
                 
             elif self.command == "attach":
+                if self.h_process:
+                    kernel32.CloseHandle(self.h_process)
                 os.system('tasklist')
                 self.pid = raw_input("Please Input PID >> ")
                 if self.open_process(self.pid):
@@ -95,7 +97,7 @@ class debugger:
                 self.set_single_step()
                 self.get_debug_event()
                 
-            elif self.command == "continue":
+            elif self.command == "continue" or self.command == "c":
                 #self.isstep = False
                 self.isbp = False
                 self.run_dbg = True
@@ -111,16 +113,23 @@ class debugger:
                 self.get_debug_event()
                 
             elif self.command == "del bp" or self.command == "del breakpoint":
-                print self.breakpoints[self.bp_address]
+                #print self.breakpoints.items()
+                print "[*] Delete All Breakpoint"
+                self.breakpoints.clear()
+                print self.breakpoints
 
             elif self.command == "show bp" or self.command == "show breakpoint":
-                print self.breakpoints.items()
+                bp_address = list(sorted(self.breakpoints.keys()))
+                #print self.breakpoints.keys()
+                for i in range(len(bp_address)):
+                    print "Breakpoint %d : %s" % (i+1, bp_address[i])
                 
-            elif self.command == "disas":
+            elif self.command == "disas" or self.command == "disassemble":
                 print "disas"
                 
-            elif self.command == "regs":
-                print "regs"
+            elif self.command == "reg" or self.command == "register":
+                print "[*] Show Current Register Value"
+                self.get_thread_context()
                 
             elif self.command == "dump":
                 dump_address = raw_input("dump address -> ")
@@ -137,7 +146,7 @@ class debugger:
             self.system_bp == False
             
     def bp_set(self, address):
-        if not self.breakpoints.has_key(address):
+        if not self.breakpoints.has_key(hex(address)):
             try:
                 original_byte = self.read_process_memory(address, 1)
 
@@ -148,14 +157,14 @@ class debugger:
                                            sizeof(mbi)):
                     print "[-] Error : 0x%08x." % kernel32.GetLastError()
                     return False
-                print mbi.BaseAddress
+                
                 if not kernel32.VirtualProtectEx(self.h_process,
                                                  mbi.BaseAddress, mbi.RegionSize,
                                                  PAGE_EXECUTE_READWRITE, byref(mbi.Protect)):
                     print "[-] Error : 0x%08x." % kernel32.GetLastError()
                     return False
 
-                print "(int) bp address : %d" % address
+                print "[*] Breakpoint address : 0x%08x" % address
                     
                 self.write_process_memory(address, "\xCC")
 
@@ -165,15 +174,18 @@ class debugger:
                                                  mbi.BaseAddress, mbi.RegionSize,
                                                  mbi.Protect, byref(temp_mbi.Protect)):
                     return False
+                
                 # registered breakpoint
-                #self.breakpoints[address] = original_byte
-                self.breakpoints[address] = original_byte
+                self.breakpoints[hex(address)] = original_byte.encode('utf-8')
 
                 kernel32.FlushInstructionCache(self.h_process, address, 1)
-                
+            
             except Exception as ex:
                 print "[-] Breakpoint Execption is %s" % ex
                 return False
+        else:
+            del self.breakpoints[hex(address)]
+
         return True
     
     def get_debug_event(self):
@@ -202,7 +214,7 @@ class debugger:
                     self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
                     self.exception_address = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
                     di = debug_event.u.Exception.ExceptionRecord.ExceptionCode
-                    print "ExceptionCode = 0x%08x, Address = 0x%08x\n" % (debug_event.u.Exception.ExceptionRecord.ExceptionCode, debug_event.u.Exception.ExceptionRecord.ExceptionAddress)
+                    print "ExceptionCode = 0x%08x, Exception Address = 0x%08x\n" % (debug_event.u.Exception.ExceptionRecord.ExceptionCode, debug_event.u.Exception.ExceptionRecord.ExceptionAddress)
                     
                     if self.exception == EXCEPTION_ACCESS_VIOLATION:
                         print("Access Violation Detected.")
@@ -218,6 +230,7 @@ class debugger:
                             print "[*] Breakpoint at " + hex(self.exception_address)
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
+                            #del self.breakpoints[hex(self.exception_address)]
                             self.run_dbg = False
                             
                     elif self.exception == EXCEPTION_SINGLE_STEP:
@@ -243,7 +256,20 @@ class debugger:
             self.first_breakpoint = False
             print("[*] first breakpoint at " + hex(self.exception_address))
         else:
-            self.write_process_memory(self.bp_address, self.breakpoints[self.bp_address])
+            if not kernel32.VirtualQueryEx(self.h_process,
+                                           context.Eip,
+                                           byref(mbi),
+                                           sizeof(mbi)):
+                    print "[-] Error : 0x%08x." % kernel32.GetLastError()
+                    return False
+                
+            if not kernel32.VirtualProtectEx(self.h_process,
+                                                 mbi.BaseAddress, mbi.RegionSize,
+                                                 PAGE_EXECUTE_READWRITE, byref(mbi.Protect)):
+                    print "[-] Error : 0x%08x." % kernel32.GetLastError()
+                    return False
+
+            self.write_process_memory(self.exception_address, self.breakpoints[hex(self.exception_address)])
             
     def set_single_step(self):
         context.EFlags |= 0x100 # Trap bit
@@ -309,7 +335,8 @@ class debugger:
         length = len(data)
 
         c_data = c_char_p(data[count.value:])
-
+        print(c_data)
+        print(type(c_data))
         if not kernel32.WriteProcessMemory(self.h_process,
                                            address,
                                            c_data,
