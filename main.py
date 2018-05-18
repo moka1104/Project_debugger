@@ -5,8 +5,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-    filename = sys.argv[1]
-    debug = debugger(filename)
+    debug = debugger() 
     print("============================================")
     print(" TUI Debugger started. Please input command.\n")
     print(" start / stop / attach")
