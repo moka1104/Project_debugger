@@ -41,6 +41,7 @@ class debugger(object): # the most object
         global context
 
         si = STARTUPINFO()
+        #memset(byref(si), 0, sizeof(si))
         pi = PROCESS_INFORMATION()
         mbi = MEMORY_BASIC_INFORMATION()
         temp_mbi = MEMORY_BASIC_INFORMATION()
@@ -179,13 +180,13 @@ class debugger(object): # the most object
                 print("[-] Breakpoint Execption is %s" % ex)
                 return False
         else:
-            self.write_process_memory(address, self.breakpoints[hex(address)].encode())
+            self.write_process_memory(address, self.breakpoints[hex(address)]) #encode
             del self.breakpoints[hex(address)]
             return True
         
     def get_debug_event(self):
         kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE)
-            
+        
         while(self.run_dbg):
             if kernel32.WaitForDebugEvent(byref(debug_event), 1000):
                 print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
@@ -200,47 +201,45 @@ class debugger(object): # the most object
                         print("Thread = %d" % di.hThread)
                         print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
                         print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
-                        print(di.lpStartAddress)
-                        #print("StartAddress = 0x%08x" % di.lpStartAddress)
+                        print("StartAddress = 0x%08x" % di.lpStartAddress)
                         print("=====================================")
 
-                        self.h_process = self.open_thread(di.hProcess)
-                        self.h_thread = self.open_thread(di.hThread)
-                        #self.start_addr = di.lpStartAddress                        
+                        self.h_process = pi.hProcess
+                        self.h_thread = self.open_thread(pi.dwThreadId)
+                        self.start_addr = di.lpStartAddress                        
                                             
                 if debug_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT:
                     self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
                     self.exception_address = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
-                    di = debug_event.u.Exception.ExceptionRecord.ExceptionCode
+                    #di = debug_event.u.Exception.ExceptionRecord.ExceptionCode
                     print("ExceptionCode = 0x%08x, Exception Address = 0x%08x\n" % (debug_event.u.Exception.ExceptionRecord.ExceptionCode, debug_event.u.Exception.ExceptionRecord.ExceptionAddress))
                     
                     if self.exception == EXCEPTION_ACCESS_VIOLATION:
                         print("Access Violation Detected.")
-                        self.run_dbg = False
+                        self.run_dbg = False                
                         
                     elif self.exception == EXCEPTION_BREAKPOINT:
                         if self.system_bp:
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
-                            self.get_memory(int(context.Eip) - 1)
+                            self.get_memory(int(context.Eip) -1)
                             self.system_bp = False
                             self.run_dbg = False
                         else:
                             print("[*] Breakpoint at " + hex(self.exception_address))
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
- 
-                            self.write_process_memory(self.exception_address, self.breakpoints[hex(self.exception_address)].encode())
-
-                            self.get_memory(int(context.Eip) - 1)
+                            self.write_process_memory(self.exception_address, self.breakpoints[hex(self.exception_address)]) #encode
+                            self.get_memory(int(context.Eip) -1)
                             self.run_dbg = False
-                            
+                            context.Eip = int(context.Eip) - 1
+
                     elif self.exception == EXCEPTION_SINGLE_STEP:
                         print("[*] Single Step at " + hex(self.exception_address))
                         self.get_thread_context()
-                        self.get_memory(context.Eip)
+                        self.get_memory(int(context.Eip))
                         self.run_dbg = False
-                            
+                        
                 elif debug_event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT:
                         if self.h_process:
                             kernel32.CloseHandle(self.h_process)
@@ -250,7 +249,8 @@ class debugger(object): # the most object
                     
                 else:
                     kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE)
-                   
+
+                
     def exception_handler_breakpoint(self):
         # if it is the first Windows driven breakpoint
         # then let's just continue on
@@ -347,6 +347,7 @@ class debugger(object): # the most object
         
     def read_process_memory(self, address, length):
         data = ""
+        original = ""
         read_buf = create_string_buffer(length)
         count = c_ulong(0)
   
@@ -359,11 +360,12 @@ class debugger(object): # the most object
             return False
         
         else:
+            original = read_buf.raw
             #print(read_buf.raw.hex())
             read_buf = read_buf.raw.hex()
             data += read_buf
             print("read memory : 0x%s" % data)
-            return data
+            return original
             
 
     def write_process_memory(self, address, data):
