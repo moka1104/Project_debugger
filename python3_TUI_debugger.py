@@ -64,7 +64,6 @@ class debugger(object): # the most object
                 if self.attached:
                     kernel32.DebugActiveProcessStop(self.pid)
                     print("[-] Finished debugging. Exit...")
-                    sys.exit()
                 
                 kernel32.CloseHandle(self.h_process)
                 kernel32.CloseHandle(self.h_thread)
@@ -73,12 +72,12 @@ class debugger(object): # the most object
             elif self.command == "attach":
                 os.system('tasklist')
                 self.pid = int(input("Please Input PID >> "))
+                self.h_process = self.open_process(self.pid)
                 
                 if kernel32.DebugActiveProcess(self.pid):
                     self.attached = True
                     print("[*] Attached process")
-                    self.h_process = self.open_process(self.pid)
-                    self.h_thread = self.open_thread(pi.dwThreadId)
+                    
                     self.get_debug_event()
                 else:
                     print("[-] Error : 0x%08x." % kernel32.GetLastError())
@@ -140,7 +139,6 @@ class debugger(object): # the most object
         
         if not self.h_process:
             self.h_process = pi.hProcess
-            self.h_thread = self.open_thread(pi.dwThreadId)
             
             self.get_debug_event()
             self.system_bp == False
@@ -206,9 +204,11 @@ class debugger(object): # the most object
                     print("Thread = %d" % di.hThread)
                     print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
                     print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
-                    #print("StartAddress = 0x%08x" % di.lpStartAddress)
+                    print("StartAddress = 0x%08x" % di.lpStartAddress)
                     print("=====================================")
 
+                    self.h_thread = self.open_thread(debug_event.dwThreadId)
+                    
                 if debug_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT:
                     self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
                     self.exception_address = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
@@ -223,7 +223,7 @@ class debugger(object): # the most object
                         if self.system_bp:
                             self.exception_handler_breakpoint()
                             self.get_thread_context()
-                            self.get_memory(int(context.Eip) -1)
+                            self.get_memory(self.exception_address)
                             self.system_bp = False
                             self.run_dbg = False
                         else:
