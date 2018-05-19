@@ -13,11 +13,9 @@ class debugger(object): # the most object
     def __init__(self):      
         self.h_process = None
         self.h_thread = None
-        self.thread_id = None
         self.context = None
         self.pid = None
         self.bp_address = None
-        self.start_addr = 0
         self.first_breakpoint = True
         self.memory_base_address = None
         self.command = None
@@ -41,7 +39,7 @@ class debugger(object): # the most object
         global context
 
         si = STARTUPINFO()
-        #memset(byref(si), 0, sizeof(si))
+        memset(byref(si), 0, sizeof(si))
         pi = PROCESS_INFORMATION()
         mbi = MEMORY_BASIC_INFORMATION()
         temp_mbi = MEMORY_BASIC_INFORMATION()
@@ -75,12 +73,12 @@ class debugger(object): # the most object
             elif self.command == "attach":
                 os.system('tasklist')
                 self.pid = int(input("Please Input PID >> "))
-                self.h_process = self.open_process(self.pid)
                 
                 if kernel32.DebugActiveProcess(self.pid):
                     self.attached = True
                     print("[*] Attached process")
                     self.h_process = self.open_process(self.pid)
+                    self.h_thread = self.open_thread(pi.dwThreadId)
                     self.get_debug_event()
                 else:
                     print("[-] Error : 0x%08x." % kernel32.GetLastError())
@@ -129,6 +127,10 @@ class debugger(object): # the most object
                 self.run_dbg = True
                 self.get_debug_event()
                 
+            elif self.command == "disas" or self.command == "disassemble":
+                print("[*] View Disassembly code")
+                self.get_memory(context.Eip)
+                
             else:
                 print("Wrong Command")
                 continue
@@ -137,6 +139,9 @@ class debugger(object): # the most object
         kernel32.CreateProcessW(filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi))
         
         if not self.h_process:
+            self.h_process = pi.hProcess
+            self.h_thread = self.open_thread(pi.dwThreadId)
+            
             self.get_debug_event()
             self.system_bp == False
         
@@ -192,26 +197,22 @@ class debugger(object): # the most object
                 print("[*] Event Code : %d" % (debug_event.dwDebugEventCode)) 
         
                 if debug_event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT:
-                        di = debug_event.u.CreateProcessInfo
-                        print("=====================================")
-                        print("          PROCESS [PID = %d]         " % debug_event.dwProcessId)
-                        print("=====================================")
-                        print("File = %d" % di.hFile)
-                        print("Process = %d" % di.hProcess)
-                        print("Thread = %d" % di.hThread)
-                        print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
-                        print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
-                        print("StartAddress = 0x%08x" % di.lpStartAddress)
-                        print("=====================================")
+                    di = debug_event.u.CreateProcessInfo
+                    print("=====================================")
+                    print("          PROCESS [PID = %d]         " % debug_event.dwProcessId)
+                    print("=====================================")
+                    print("File = %d" % di.hFile)
+                    print("Process = %d" % di.hProcess)
+                    print("Thread = %d" % di.hThread)
+                    print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
+                    print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
+                    #print("StartAddress = 0x%08x" % di.lpStartAddress)
+                    print("=====================================")
 
-                        self.h_process = pi.hProcess
-                        self.h_thread = self.open_thread(pi.dwThreadId)
-                        self.start_addr = di.lpStartAddress                        
-                                            
                 if debug_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT:
                     self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
                     self.exception_address = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
-                    #di = debug_event.u.Exception.ExceptionRecord.ExceptionCode
+                
                     print("ExceptionCode = 0x%08x, Exception Address = 0x%08x\n" % (debug_event.u.Exception.ExceptionRecord.ExceptionCode, debug_event.u.Exception.ExceptionRecord.ExceptionAddress))
                     
                     if self.exception == EXCEPTION_ACCESS_VIOLATION:
