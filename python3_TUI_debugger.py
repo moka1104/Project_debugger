@@ -61,13 +61,13 @@ class debugger(object): # the most object
                 self.create_process(filename)
                 
             elif self.command == "stop":
-                if self.attached:
+                if self.attached == True:
                     kernel32.DebugActiveProcessStop(self.pid)
                     print("[-] Finished debugging. Exit...")
-                
+                    
+                print("[-] Finished debugging. Exit...")
+                kernel32.TerminateProcess(self.h_process, 0)
                 kernel32.CloseHandle(self.h_process)
-                kernel32.CloseHandle(self.h_thread)
-                sys.exit()
                 
             elif self.command == "attach":
                 os.system('tasklist')
@@ -115,7 +115,6 @@ class debugger(object): # the most object
                 bp_address = list(sorted(self.breakpoints.keys()))
                 for i in range(len(bp_address)):
                     print("Breakpoint %d : %s" % (i+1, bp_address[i]))
-                #print(self.breakpoints.items())
                 
             elif self.command == "reg" or self.command == "register":
                 print("[*] Show Current Register Value")
@@ -204,7 +203,7 @@ class debugger(object): # the most object
                     print("Thread = %d" % di.hThread)
                     print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
                     print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
-                    print("StartAddress = 0x%08x" % di.lpStartAddress)
+                    #print("StartAddress = 0x%08x" % di.lpStartAddress)
                     print("=====================================")
 
                     self.h_thread = self.open_thread(debug_event.dwThreadId)
@@ -232,8 +231,9 @@ class debugger(object): # the most object
                             self.get_thread_context()
                             self.write_process_memory(self.exception_address, self.breakpoints[hex(self.exception_address)]) #encode
                             self.get_memory(int(context.Eip) -1)
-                            self.run_dbg = False
                             context.Eip = int(context.Eip) - 1
+                            kernel32.SetThreadContext(self.h_thread, byref(context))
+                            self.run_dbg = False       
 
                     elif self.exception == EXCEPTION_SINGLE_STEP:
                         print("[*] Single Step at " + hex(self.exception_address))
@@ -243,9 +243,10 @@ class debugger(object): # the most object
                         
                 elif debug_event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT:
                         if self.h_process:
-                            kernel32.CloseHandle(self.h_process)
                             print("[-] Process Debug Exit.")
-                            sys.exit()
+                            
+                            kernel32.TerminateProcess(self.h_process, 0)
+                            kernel32.CloseHandle(self.h_process)
                         return False
                     
                 else:
