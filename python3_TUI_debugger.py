@@ -63,7 +63,6 @@ class debugger(object): # the most object
             elif self.command == "stop":
                 if self.attached == True:
                     kernel32.DebugActiveProcessStop(self.pid)
-                    print("[-] Finished debugging. Exit...")
                     
                 print("[-] Finished debugging. Exit...")
                 kernel32.TerminateProcess(self.h_process, 0)
@@ -71,13 +70,12 @@ class debugger(object): # the most object
                 
             elif self.command == "attach":
                 os.system('tasklist')
-                self.pid = int(input("Please Input PID >> "))
+                self.pid = int(input("[*] Input PID >> "))
                 self.h_process = self.open_process(self.pid)
                 
                 if kernel32.DebugActiveProcess(self.pid):
                     self.attached = True
                     print("[*] Attached process")
-                    
                     self.get_debug_event()
                 else:
                     print("[-] Error : 0x%08x." % kernel32.GetLastError())
@@ -106,7 +104,6 @@ class debugger(object): # the most object
                 self.get_debug_event()
                 
             elif self.command == "del bp" or self.command == "del breakpoint":
-                #print self.breakpoints.items()
                 print("[*] Delete All Breakpoint")
                 self.breakpoints.clear()
                 print(self.breakpoints)
@@ -130,7 +127,7 @@ class debugger(object): # the most object
                 self.get_memory(context.Eip)
                 
             else:
-                print("Wrong Command")
+                print("[-] This is Wrong Command")
                 continue
     
     def create_process(self, filename):    
@@ -145,8 +142,10 @@ class debugger(object): # the most object
     def bp_set(self, address):
         if not hex(address) in self.breakpoints:
             try:
+                # read original byte
                 original_byte = self.read_process_memory(address, 1)
 
+                # change memory access
                 if not kernel32.VirtualQueryEx(self.h_process,
                                            context.Eip,
                                            byref(mbi),
@@ -161,17 +160,19 @@ class debugger(object): # the most object
                     return False
 
                 print("[*] Breakpoint address : 0x%08x" % address)
-                    
-                self.write_process_memory(address, b"\xCC")
-
-                self.read_process_memory(address, 1)
                 
+                # set breakpoint "\xcc"    
+                self.write_process_memory(address, b"\xCC")
+                # overlap "\xcc"
+                self.read_process_memory(address, 1)
+
+                # recover original memory protect
                 if not kernel32.VirtualProtectEx(self.h_process,
                                                  mbi.BaseAddress, mbi.RegionSize,
                                                  mbi.Protect, byref(temp_mbi.Protect)):
                     return False
                 
-                # registered breakpoint
+                # restored breakpoint original byte 
                 self.breakpoints[hex(address)] = original_byte
                 
                 kernel32.FlushInstructionCache(self.h_process, address, 1)
@@ -182,7 +183,8 @@ class debugger(object): # the most object
                 print("[-] Breakpoint Execption is %s" % ex)
                 return False
         else:
-            self.write_process_memory(address, self.breakpoints[hex(address)]) #encode
+            # restore, delete breakpoints
+            self.write_process_memory(address, self.breakpoints[hex(address)]) 
             del self.breakpoints[hex(address)]
             return True
         
