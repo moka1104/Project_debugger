@@ -26,6 +26,7 @@ class debugger(object): # the most object
         self.run_dbg = True
         self.system_bp = True
         self.isbp = False
+        self.isstop = False
         self.breakpoints = {} # dictionary, set
         self.guarded_pages = [] # list
         self.memory_breakpoints = {}
@@ -54,10 +55,10 @@ class debugger(object): # the most object
     def cmdProc(self):
         
         while(True):
-            self.command = input("input >> ")
+            self.command = input("Input Your Command >> ")
         
             if self.command == "start":
-                filename = input("Please Input Filename >> ")
+                filename = input("[*] Filename >> ")
                 self.create_process(filename)
                 
             elif self.command == "stop":
@@ -65,7 +66,9 @@ class debugger(object): # the most object
                     kernel32.DebugActiveProcessStop(self.pid)
                     
                 print("[-] Finished debugging. Exit...")
-                kernel32.TerminateProcess(self.h_process, 0)
+                self.h_process = kernel32.OpenProcess(1, False, self.pid)
+                kernel32.TerminateProcess(self.h_process, 100) # 100 exit 
+                kernel32.CloseHandle(self.h_thread)
                 kernel32.CloseHandle(self.h_process)
                 
             elif self.command == "attach":
@@ -96,7 +99,7 @@ class debugger(object): # the most object
                     self.get_debug_event()
                             
             elif self.command == "bp" or self.command == "breakpoint":
-                self.bp_address = input("bp address -> ")
+                self.bp_address = input("[*] Breakpoint Address >> ")
                 self.bp_address = int(self.bp_address, 16)
                 bp_ret = self.bp_set(self.bp_address)
                 if not bp_ret: # breakpoint is none
@@ -110,6 +113,7 @@ class debugger(object): # the most object
 
             elif self.command == "show bp" or self.command == "show breakpoint":
                 bp_address = list(sorted(self.breakpoints.keys()))
+                print("[*] Breakpoint List")
                 for i in range(len(bp_address)):
                     print("Breakpoint %d : %s" % (i+1, bp_address[i]))
                 
@@ -131,13 +135,16 @@ class debugger(object): # the most object
                 continue
     
     def create_process(self, filename):    
-        kernel32.CreateProcessW(filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi))
-        
+        if not kernel32.CreateProcessW(filename, None, None, None, None, DEBUG_PROCESS, None, None, byref(si), byref(pi)):
+            print("[-] Error : 0x%08x." % kernel32.GetLastError())
+            return False
+
         if not self.h_process:
             self.h_process = pi.hProcess
-            
+            self.run_dbg = True
+            self.system_bp = True
             self.get_debug_event()
-            self.system_bp == False
+            
         
     def bp_set(self, address):
         if not hex(address) in self.breakpoints:
@@ -159,7 +166,7 @@ class debugger(object): # the most object
                     print("[-] Error : 0x%08x." % kernel32.GetLastError())
                     return False
 
-                print("[*] Breakpoint address : 0x%08x" % address)
+                print("[*] Breakpoint Address is 0x%08x" % address)
                 
                 # set breakpoint "\xcc"    
                 self.write_process_memory(address, b"\xCC")
