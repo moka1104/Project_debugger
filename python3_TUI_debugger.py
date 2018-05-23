@@ -212,7 +212,8 @@ class debugger(object): # the most object
                     print("Thread = %d" % di.hThread)
                     print("BaseOfImage = 0x%08x" % di.lpBaseOfImage)
                     print("ThreadLocalBase = 0x%08x" % di.lpThreadLocalBase)
-                    #print("StartAddress = 0x%08x" % di.lpStartAddress)
+                    if self.attached == False:
+                        print("StartAddress = 0x%08x" % di.lpStartAddress)
                     print("=====================================")
 
                     self.h_thread = self.open_thread(debug_event.dwThreadId)
