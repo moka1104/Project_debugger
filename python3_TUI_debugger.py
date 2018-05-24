@@ -129,7 +129,10 @@ class debugger(object): # the most object
             elif self.command == "disas" or self.command == "disassemble":
                 print("[*] View Disassembly code")
                 self.get_memory(context.Eip)
-                
+
+            elif self.command == "mmap" or self.command == "memory map":
+                self.view_memory_map()
+
             else:
                 print("[-] This is Wrong Command")
                 continue
@@ -308,16 +311,23 @@ class debugger(object): # the most object
             print("EBX : 0x%08x" % context.Ebx)
             print("ECX : 0x%08x" % context.Ecx)
             print("EDX : 0x%08x" % context.Edx)
+            print("ESP : 0x%08x" % context.Esp)
+            print("EBP : 0x%08x" % context.Ebp)
             print("ESI : 0x%08x" % context.Esi)
             print("EDI : 0x%08x" % context.Edi)
-            print("EBP : 0x%08x" % context.Ebp)
-            print("ESP : 0x%08x" % context.Esp)
             if self.isbp == True:
                 bp_eip = int(context.Eip)
                 bp_eip -= 1
                 print("EIP : 0x%08x" % bp_eip)
             else:
                 print("EIP : 0x%08x" % context.Eip)
+            print("CS : 0x%08x" % context.SegCs)
+            print("DS : 0x%08x" % context.SegDs)
+            print("SS : 0x%08x" % context.SegSs)
+            print("ES : 0x%08x" % context.SegEs)
+            print("FS : 0x%08x" % context.SegFs)
+            print("GS : 0x%08x" % context.SegGs)
+            print("EFlags : 0x%08x" % context.EFlags)
             return context.Eip
         else:
             print("[-] Error : 0x%08x." % kernel32.GetLastError())
@@ -348,15 +358,24 @@ class debugger(object): # the most object
                 if i % 2 == 0:
                     op_res += "%02s " % opcode[0+i:2+i]
                 
-            byte_code = " : %-3s" % op_res
-            disas = "  %s" % ins_asm.decode('utf-8')
+            byte_code = " : %-23s" % op_res
+            disas = "%s" % ins_asm.decode('utf-8')
 
             result = "0x" + address + byte_code + disas
             #asm_list.append(result)
             print(result)
             
         #print(asm_list)
-        
+            
+    def view_memory_map(self):
+        pe = pefile.PE(filename)
+
+        for section in pe.sections:
+            print("." + section.Name.decode().lower().replace(".", ""))
+            print("start address : " + hex(section.VirtualAddress + pe.OPTIONAL_HEADER.ImageBase))
+            print("size : " + hex(section.SizeOfRawData))
+            print("end address : " + hex(section.VirtualAddress + pe.OPTIONAL_HEADER.ImageBase + section.SizeOfRawData))
+
     def read_process_memory(self, address, length):
         data = ""
         original = ""
