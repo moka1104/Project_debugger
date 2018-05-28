@@ -1,13 +1,16 @@
 # Windows 32bit debugger #
 ## Description ##
-Python3-based **Windows 32bit TUI Debugger**, mainly used the Windows Debugging API
+Python3-based **Windows 32bit Debugger**.
 
-python3-based **Windows 32bit GUI Debugger**, mainly used the Windows Debugging API and FLASK
+It has TUI, GUI versions, mainly used the python ctype module, Windows debugging API, FLASK
 
 ## Usage ##
->- python [**main.py**]
+##### TUI Version #####
+>- _python main.py_
 
-## Reference ##
+##### GUI Version #####
+> 1. execute ~~~
+
 
 
 
