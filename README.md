@@ -1,6 +1,6 @@
 # Windows TUI debugger #
 ## Description ##
-Python-based **Windows TUI Debugger**, mainly used the Windows Debugger API
+Python3-based **Windows 32bit program TUI Debugger**, mainly used the Windows Debugging API
 
 ## Usage ##
 >- python [**main.py**]
