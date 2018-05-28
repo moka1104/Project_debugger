@@ -314,15 +314,4 @@ class MEMORY_BASIC_INFORMATION(Structure):
         ("Type", DWORD),
 ]
 
-class MEMORY_BASIC_INFORMATION64(Structure):
-    _fields_ = [
-        ("BaseAddress", DWORD64),
-        ("AllocationBase", DWORD64),
-        ("AllocationProtect", DWORD),
-        ("RegionSize", DWORD64),
-        ("State", DWORD),
-        ("Protect", PDWORD64),
-        ("Type", DWORD),
-]
-
 

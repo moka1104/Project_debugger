@@ -396,7 +396,7 @@ class debugger(object): # 가장 최상위 object
             print("size : " + hex(section.SizeOfRawData))
             print("end address : " + hex(section.VirtualAddress + pe.OPTIONAL_HEADER.ImageBase + section.SizeOfRawData))
 
-    def set_stack(self):
+    def set_stack(self): # stack setting
         kernel32.GetThreadContext(self.h_thread, byref(context))
         self.stack_base_address = context.Esp & 0xFFFFF000
         for i in range(1024):
