@@ -44,18 +44,21 @@ class debugger(object): # 가장 최상위 object
         global temp_mbi
         global continue_status
         global context
-
-        si = STARTUPINFO()
-        memset(byref(si), 0, sizeof(si)) # startupinfo struct 초기화
-        si.cb = sizeof(si)
+        global pe32
+        
+        si = STARTUPINFO() # process attribute information
+        memset(byref(si), 0, sizeof(si)) # struct initialize
+        si.cb = sizeof(si) # struct size initialize
         
         pi = PROCESS_INFORMATION()
         mbi = MEMORY_BASIC_INFORMATION()
         temp_mbi = MEMORY_BASIC_INFORMATION() # before memory basic information
-        
+
+        pe32 = PROCESSENTRY32()
         debug_event = DEBUG_EVENT()
         context = CONTEXT()
         context.ContextFlags = CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS
+
         
  # ex command pattern design....... 
  
@@ -79,7 +82,8 @@ class debugger(object): # 가장 최상위 object
                 kernel32.CloseHandle(self.h_process)
                 
             elif self.command == "attach":
-                os.system('tasklist') # view process list
+                self.get_process_list()
+                
                 self.pid = int(input("[*] Input PID >> "))
                 self.h_process = self.open_process(self.pid)
                 
@@ -387,6 +391,28 @@ class debugger(object): # 가장 최상위 object
             
         #print(asm_list)
             
+    def get_process_list(self):
+        h_snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+        if not h_snapshot:
+            print("[-] Error : 0x%08x." % kernel32.GetLastError())
+            return False
+                
+        pe32.dwSize = sizeof(pe32)
+               
+        if not kernel32.Process32First(h_snapshot, byref(pe32)):
+            print("Error : 0x%08x." % kernel32.GetLastError())
+            kernel32.ClostHandle(h_snapshot)
+            return False
+        print("       [ProcessName]       |   [PID]  |")
+        print("+--------------------------+----------+")
+        while True:
+            print("%-27s|   %-5d  |" % (pe32.szExeFile.decode(), pe32.th32ProcessID))
+            if not kernel32.Process32Next(h_snapshot, byref(pe32)):
+                print("+--------------------------+----------+")
+                break
+                    
+        kernel32.CloseHandle(h_snapshot)
+        
     def view_memory_map(self):
         pe = pefile.PE(self.filename)
 
