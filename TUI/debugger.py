@@ -146,7 +146,10 @@ class debugger(object): # 가장 최상위 object
                 
             elif self.command == "stack":
                 self.view_stack()
-                
+            
+            elif self.command == "hexdump":
+                self.hexdump()
+
             else:
                 print("[-] This is Wrong Command")
                 continue
@@ -448,6 +451,44 @@ class debugger(object): # 가장 최상위 object
 
         print("stack at 0x%08x" % context.Esp)
         print(self.stack_address)
+    
+    def hexdump(self):
+        print('-' * 79)
+        
+        start_offset=0
+        offset = 0
+        f = open(self.filename, 'rb')
+        buffer = f.read()
+
+        while offset < len(buffer):
+            # Offset
+            print(' %08X : ' % (offset + start_offset), end='')
+     
+            if ((len(buffer) - offset) < 0x10) is True:
+                data = buffer[offset:]
+            else:
+                data = buffer[offset:offset + 0x10]
+     
+            # Hex Dump
+            for hex_dump in data:
+                print("%02X" % hex_dump, end=' ')
+     
+            if ((len(buffer) - offset) < 0x10) is True:
+                print(' ' * (3 * (0x10 - len(data))), end='')
+     
+            print('  ', end='')
+     
+            # Ascii
+            for ascii_dump in data:
+                if ((ascii_dump >= 0x20) is True) and ((ascii_dump <= 0x7E) is True):
+                    print(chr(ascii_dump), end='')
+                else:
+                    print('.', end='')
+     
+            offset = offset + len(data)
+            print('')
+     
+        print('-' * 79)
 
     def read_process_memory(self, address, length):
         data = ""
