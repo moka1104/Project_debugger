@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debugger</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='semantic/semantic.css') }}">
+    <script
+    src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+    crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='semantic/semantic.js') }}"></script>
+</head>
+<style type="text/css">
+
+    h2 {
+        color: white;
+    }
+
+    textarea {
+        border: none;
+        background-color: #0A0D0F; 
+        color: white;
+    }
+
+    #wrap {
+        height: 100%;
+        background-color: #293742;
+    }
+
+    #container {
+        height: 100%;
+    }
+
+    #header {   
+        position: relative; 
+        width: 100%;
+        padding: 30px 10px;        
+    }
+
+    #filepath {
+        width: 85%;
+        height: 27px;
+        resize: none;
+        background-color: black;
+        color: white;
+        border: none;
+    }
+
+    #button{
+        position: absolute;
+        width: 10%;
+        margin-left: 3%; 
+        text-align: center;
+    }
+
+    #content {
+        width: 100%;
+        height: 100%;
+    }
+
+    .ui.grid {
+        height: 100%;
+    }
+
+    #row1, #row2 {
+        background-color: #30404D;
+    }
+
+/*    .inputfile {
+        width: 0.1px;
+        height: 0.1px;
+        opacity: 0;
+        overflow: hidden;
+        position: absolute;
+        z-index: -1;
+    }*/
+    
+/* text color #396B8D*/
+</style>
+<body>
+    <div id="wrap">
+        <div id="container" class="ui container">
+            <div id="header">
+                <form action="{{ url_for('start') }}" method="POST" enctype="multipart/form-data">
+                    <input type="text" id="filepath" />
+                    <label for="fileinput" class="ui mini gray button" id="button">
+                      <i class="ui upload icon"></i> 
+                      FILE
+                    </label>
+                    <input type="file" id="fileinput" name="file" style="display : none" />
+                </form>
+            </div>
+            <div id="content">
+                <div class="ui sixteen column equal height streched grid">
+                    <div id="row1" class="row">
+                        <div id="disassembly" class="ui eight wide column">
+                            <p><h2>Disassembly</h2></p>  
+                            <form action="{{ url_for('hexdump') }}" method="POST">
+                                {{ result }}
+                            </form>                      
+                        </div>
+                        <div id="dump" class="ui eight wide column">
+                            <p><h2>Dump</h2></p>
+                        </div>
+                    </div>   
+                    <div id="row2" class="row">
+                        <div id="register" class="ui four wide column">
+                            <h2>Register</h2>
+                        </div>
+                        <div id="stack" class="ui four wide column">
+                            <h2>Stack</h2>
+                        </div>
+                        <div id="memory" class="ui eight wide column">
+                            <h2>Memory Map</h2>
+                        </div>
+                    </div>
+                    
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        $('#fileinput').on('change', function (e) {
+            var name = e.target.files[0].name;
+            $('#filepath', $(e.target).parent()).val(name);
+        });
+    </script>
+</body>
+</html>
