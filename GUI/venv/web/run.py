@@ -6,51 +6,65 @@ from debugger import *
 
 app = Flask(__name__)
 
-#UPLOAD_FOLDER = 'C:\\Users\\dora\\Desktop\\github\\debugger\\GUI\\venv\\web\\static\\uploads'
-#app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+UPLOAD_FOLDER = 'C:\\Users\\dora\\Desktop\\github\\debugger\\GUI\\venv\\web\\static\\uploads\\'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/')
 def index():
     return render_template('layout.html')
 
-@app.route('/layout', methods=["POST"])
-def start():
-    file = request.files['file']
-    filename = secure_filename(file.filename)
-    debug = debugger(filename)
-    #debug.create_process(self.filename)
-    return redirect(url_for('hexdump', filename=filename))
+@app.route('/uploader', methods=['POST'])
+def upload_file(filename=None):
+    if request.method == 'POST':
+        file = request.files['file']
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename)) # uploaded success
+        # debug = debugger(filename)
+        # debug.create_process(filename)
+        # return redirect(url_for('uploaded_file', filename=filename))
+    return render_template('layout.html', filename = filename)
 
-@app.route('/layout', methods=["POST"])
-def hexdump(filename):
-    f = open(filename, 'rb')
+# @app.route('/upload')
+# def uploaded_file(filename=None):
+#     return send_from_directory(app.config['UPLOAD_FOLDER'],
+#                                filename)  
+
+@app.route('/hexdump')
+def hexdump(filename=None):  
+    start_offset=0
     offset = 0
-    while True:
-        buffer = f.read(16)
-        buffer_len = len(buffer)
-        if buffer_len == 0:
-            break
+    f = open(filename, 'rb')
+    buffer = f.read()
 
-        output += "%08x : " % offset
-        
-        for i in range(buffer_len):
-            if i==8: 
-                output += " "
-            output += "%02X" % (ord(buffer[i]))
-
-        if buffer_len < 16:
-            for i in range(((16 - buffer_len)*3)+1):
-                output += " "    
-            output += " "
-        
-        for i in range(buffer_len):
-            if (ord(buffer[i]) >= 0x20 and ord(buffer[i]) <= 0x7E):
-                output += buffer[i]
+    while offset < len(buffer):
+        # Offset
+        output += (' %08X : ' % (offset + start_offset))
+ 
+        if ((len(buffer) - offset) < 0x10) is True:
+            data = buffer[offset:]
+        else:
+            data = buffer[offset:offset + 0x10]
+ 
+        # Hex Dump
+        for hex_dump in data:
+            output += ("%02X" % hex_dump)
+ 
+        if ((len(buffer) - offset) < 0x10) is True:
+            output += (' ' * (3 * (0x10 - len(data))))
+ 
+        output += ('  ')
+ 
+        # Ascii
+        for ascii_dump in data:
+            if ((ascii_dump >= 0x20) is True) and ((ascii_dump <= 0x7E) is True):
+                output += (chr(ascii_dump))
             else:
-                output += "."
-        offset += 16
-    f.close(filename)
+                output += ('.')
+ 
+        offset = offset + len(data)
+        output += ''
     return render_template('layout.html', result = output)
+
 
 # @app.route("/layout", methods=['GET', 'POST'])
 # def upload():
