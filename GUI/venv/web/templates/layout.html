@@ -3,106 +3,41 @@
 <head>
     <title>Debugger</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='semantic/semantic.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">   
     <script
     src="https://code.jquery.com/jquery-3.1.1.min.js"
     integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
     crossorigin="anonymous"></script>
     <script src="{{ url_for('static', filename='semantic/semantic.js') }}"></script>
+<!-- /* text color #396B8D*/ -->
+
 </head>
-<style type="text/css">
 
-    h2 {
-        color: white;
-    }
-
-    #wrap {
-        height: 100%;
-        background-color: #293742;
-    }
-
-    #container {
-        height: 100%;
-    }
-
-    #header {   
-        width: 100%;
-        padding: 30px 10px;
-    }
-
-    #filepath {
-        width: 77%;
-        height: 28px;
-        resize: none;
-        background-color: #1D262E;
-        color: white;
-        border: none;
-    }
-
-    #button{
-        /*position: absolute;*/
-        width: 9%;
-        margin-left: 1%; 
-        text-align: center;
-    }
-
-    #submit{
-        /*position: absolute;*/
-        width: 9%;
-        margin-left: 1%;
-        text-align: center;
-    }
-
-    #content {
-        margin-top: 10px;
-        padding: 0 10px;
-        width: 100%;
-        height: 100%;
-    }
-
-    .ui.grid {
-        height: 100%;
-    }
-
-    #row1, #row2 {
-        background-color: #30404D;
-    }
-
-/*    .inputfile {
-        width: 0.1px;
-        height: 0.1px;
-        opacity: 0;
-        overflow: hidden;
-        position: absolute;
-        z-index: -1;
-    }*/
-    
-/* text color #396B8D*/
-</style>
 <body>
     <div id="wrap">
         <div id="container" class="ui container">
             <div id="header">
-                <form action="/uploader" method="POST" enctype="multipart/form-data">
+                <form action="/path" method="POST" enctype="multipart/form-data">
                     <input type="text" id="filepath" />
                     <label for="fileinput" class="ui mini gray button" id="button">
                       <i class="ui upload icon"></i> 
                       LOAD
                     </label>
                     <input type="file" id="fileinput" name="file" style="display : none" />
-                    <input type="submit" class="ui mini blue button" id="submit" value="RUN" />
+                    <button class="ui mini blue button" id="btn_submit">RUN</button>
                 </form>
             </div>
             <div id="content">
                 <div class="ui sixteen column equal height streched grid">
                     <div id="row1" class="row">
                         <div id="disassembly" class="ui eight wide column">
-                            <h2>Disassembly {{ filename }} </h2>
-                            <!-- <form action="{{ url_for('hexdump') }}" method="POST">
-                                {{ result }}
-                            </form>  -->                     
+                            <h2>Disassembly</h2>                  
                         </div>
                         <div id="dump" class="ui eight wide column">
-                            <h2>Dump</h2>
+                            <!-- <form action="/hexdump" method="POST"> -->
+                                <h2>Dump</h2>
+                                <!-- <p>{{ result }}</p> -->
+                            <!-- </form> -->
                         </div>
                     </div>   
                     <div id="row2" class="row">
@@ -122,11 +57,33 @@
             </div>
         </div>
     </div>
-    <script type="text/javascript">
-        $('#fileinput').on('change', function (e) {
-            var name = e.target.files[0].name;
-            $('#filepath', $(e.target).parent()).val(name);
-        });
-    </script>
+<script type="text/javascript">
+$('#fileinput').on('change', function (e) {
+    var name = e.target.files[0].name;
+    $('#filepath', $(e.target).parent()).val(name);
+});
+
+$('#btn_submit').click(function(){
+    $.ajax({
+        url: '/path',
+        cache: false,
+        type: "POST",
+        dataType: "text",
+        // data: $('form').serialize(),
+        success: function(response){
+            // $('#filepath').text(response);
+            // alert(response);
+            $('#filepath').text(response.filepath);
+            // console.log(response);
+        },
+        error: function(request, status, error){
+            alert("code:"+request.status+"message:"+request.requestText+"error:"+error);
+            console.log(error);
+
+        }
+    });
+});
+
+</script>
 </body>
 </html>
