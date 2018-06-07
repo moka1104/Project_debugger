@@ -18,13 +18,13 @@
         <div id="container" class="ui container">
             <div id="header">
                 <form action="/path" method="POST" enctype="multipart/form-data">
-                    <input type="text" id="filepath" />
+                    <input type="text" id="filepath" value="{{ filepath }}"/>
                     <label for="fileinput" class="ui mini gray button" id="button">
                       <i class="ui upload icon"></i> 
                       LOAD
                     </label>
                     <input type="file" id="fileinput" name="file" style="display : none" />
-                    <button class="ui mini blue button" id="btn_submit">RUN</button>
+                    <input type="submit" class="ui mini blue button" id="button" value="RUN"/>
                 </form>
             </div>
             <div id="content">
@@ -63,26 +63,22 @@ $('#fileinput').on('change', function (e) {
     $('#filepath', $(e.target).parent()).val(name);
 });
 
-$('#btn_submit').click(function(){
-    $.ajax({
-        url: '/path',
-        cache: false,
-        type: "POST",
-        dataType: "text",
-        // data: $('form').serialize(),
-        success: function(response){
-            // $('#filepath').text(response);
-            // alert(response);
-            $('#filepath').text(response.filepath);
-            // console.log(response);
-        },
-        error: function(request, status, error){
-            alert("code:"+request.status+"message:"+request.requestText+"error:"+error);
-            console.log(error);
-
-        }
-    });
-});
+// $('#btn_submit').click(function(){
+//     $.ajax({
+//         url: '/path',
+//         cache: false,
+//         type: "POST",
+//         success: function(response){
+//             // $('#filepath').text(response);
+//             // alert(response);
+//             $('#filepath').text(response);
+//             // console.log(response);
+//         },
+//         error: function(request, status, error){
+//             console.log(error);
+//         }
+//     });
+// });
 
 </script>
 </body>

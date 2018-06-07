@@ -5,8 +5,8 @@ from debugger import *
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = 'C:\\Users\\dora\\Desktop\\github\\debugger\\GUI\\venv\\web\\uploads\\'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+#UPLOAD_FOLDER = 'C:\\Users\\dora\\Desktop\\github\\debugger\\GUI\\venv\\web\\uploads\\'
+#app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/')
 def index():
@@ -17,8 +17,8 @@ def filepath():
     if request.method == 'POST':
         file = request.files['file']
         filename = secure_filename(file.filename)
-        path = os.path.abspath(filename)
-        return render_template('layout.html')
+        path = os.path.abspath(__file__)
+    return render_template('layout.html', filepath = path)
 
 @app.route('/debug', methods=['POST'])
 def debug(filename=None):
