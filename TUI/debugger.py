@@ -77,17 +77,17 @@ class debugger(object): # 가장 최상위 object
                     
                 print("[-] Finished debugging. Exit...")
                 self.h_process = kernel32.OpenProcess(1, False, self.pid)
-                kernel32.TerminateProcess(self.h_process, 100) # number 100 means exit 
-                kernel32.CloseHandle(self.h_thread)
+                kernel32.TerminateProcess(self.h_process, 100) # receive exit code
+                kernel32.CloseHandle(self.h_thread) # remove kernel object 
                 kernel32.CloseHandle(self.h_process)
                 
             elif self.command == "attach":
                 self.get_process_list()
                 
                 self.pid = int(input("[*] Input PID >> "))
-                self.h_process = self.open_process(self.pid)
+                self.h_process = self.open_process(self.pid) # open process
                 
-                if kernel32.DebugActiveProcess(self.pid): # debugger status is running
+                if kernel32.DebugActiveProcess(self.pid): # debugger status is debugging mode
                     self.attached = True
                     print("[*] Attached process")
                     self.get_debug_event()
@@ -96,34 +96,34 @@ class debugger(object): # 가장 최상위 object
                     break
                     
             elif self.command == "step":
-                self.isbp = False
-                self.run_dbg = True
+                self.isbp = False # if breakpoint event 
+                self.run_dbg = True # receive commands
                 self.set_single_step()
                 self.get_debug_event()
                 
             elif self.command == "continue" or self.command == "c":
                 self.isbp = False
                 self.run_dbg = True
-                if not self.breakpoints:
+                if not self.breakpoints: # breakpoint is none
                     print("[-] breakpoint is none")
                 else: 
                     self.get_debug_event()
                             
             elif self.command == "bp" or self.command == "breakpoint":
                 self.bp_address = input("[*] Breakpoint Address >> ")
-                self.bp_address = int(self.bp_address, 16)
-                bp_ret = self.bp_set(self.bp_address)
+                self.bp_address = int(self.bp_address, 16) # convert address to hex
+                bp_ret = self.bp_set(self.bp_address) # breakpoint setting
                 if not bp_ret: # breakpoint is none
                     self.run_dbg = False
                 self.get_debug_event()
                 
             elif self.command == "del bp" or self.command == "del breakpoint":
                 print("[*] Delete All Breakpoint")
-                self.breakpoints.clear()
+                self.breakpoints.clear() # clear breakpoint array
                 print(self.breakpoints)
 
             elif self.command == "show bp" or self.command == "show breakpoint":
-                bp_address = list(sorted(self.breakpoints.keys()))
+                bp_address = list(sorted(self.breakpoints.keys())) # breakpoint order to address
                 print("[*] Breakpoint List")
                 for i in range(len(bp_address)):
                     print("Breakpoint %d : %s" % (i+1, bp_address[i]))
@@ -169,9 +169,9 @@ class debugger(object): # 가장 최상위 object
         if not hex(address) in self.breakpoints:
             try:
                 # read original byte
-                original_byte = self.read_process_memory(address, 1)
+                original_byte = self.read_process_memory(address, 1) # store original byte
 
-                # change memory access
+                # bring memory page, and change access auth
                 if not kernel32.VirtualQueryEx(self.h_process,
                                            context.Eip,
                                            byref(mbi),
@@ -192,7 +192,7 @@ class debugger(object): # 가장 최상위 object
                 # overlap "\xcc"
                 self.read_process_memory(address, 1)
 
-                # recover original memory protect
+                # recover original memory access auth
                 if not kernel32.VirtualProtectEx(self.h_process,
                                                  mbi.BaseAddress, mbi.RegionSize,
                                                  mbi.Protect, byref(temp_mbi.Protect)):
@@ -215,20 +215,20 @@ class debugger(object): # 가장 최상위 object
             return True
         
     def get_debug_event(self):
-        kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE)
+        kernel32.ContinueDebugEvent(debug_event.dwProcessId, debug_event.dwThreadId, DBG_CONTINUE) # continue code running
         
         while(self.run_dbg):
-            if kernel32.WaitForDebugEvent(byref(debug_event), 1000):
+            if kernel32.WaitForDebugEvent(byref(debug_event), 1000): # waithing event signal
                 print("[*] Event Code : %d" % (debug_event.dwDebugEventCode))
                 
-                if self.h_thread:
+                if self.h_thread: # if was created thread handle
                     kernel32.GetThreadContext(self.h_thread, byref(context))
                     self.view_stack()
                     
-                if debug_event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT:
-                    di = debug_event.u.CreateProcessInfo
-                    self.h_process = di.hProcess
-                    self.h_thread = self.open_thread(debug_event.dwThreadId)
+                if debug_event.dwDebugEventCode == CREATE_PROCESS_DEBUG_EVENT: # event handle is create process
+                    di = debug_event.u.CreateProcessInfo # debug event structrue
+                    self.h_process = di.hProcess # get debugging process handle
+                    self.h_thread = self.open_thread(debug_event.dwThreadId) # get debugging thread handle
                     
                     print("=====================================")
                     print("          PROCESS [PID = %d]         " % debug_event.dwProcessId)
@@ -542,6 +542,3 @@ class debugger(object): # 가장 최상위 object
             return h_thread
         else:
             print("[*] Could not obtain a valid thread handle.")
-
-
-    
